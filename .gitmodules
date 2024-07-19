@@ -1,0 +1,3 @@
+[submodule "cm"]
+	path = cm
+	url = git@github.com:aesilevich/cm.git
