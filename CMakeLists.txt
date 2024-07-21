@@ -43,7 +43,7 @@ if("${CXX_REFACTOR_BUILD_LLVM}")
 
     # fake config for Clang package
     file(MAKE_DIRECTORY "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}")
-    file(TOUCH "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/Clang-config.cmake")
+    file(TOUCH "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/clang-config.cmake")
 
     set(LLVM_ENABLE_PROJECTS "clang" CACHE STRING "LLVM projects to build")
     set(LLVM_ENABLE_RUNTIMES "libcxx;libcxxabi;libunwind" CACHE STRING "LLVM runtimes to build")
