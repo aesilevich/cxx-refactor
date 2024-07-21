@@ -1,4 +1,5 @@
-# cxx-refactor - C++ Refactoring Tool
+# cxx-refactor
+C++ Refactoring Tool
 
 ## How to build
 
