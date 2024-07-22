@@ -9,6 +9,13 @@
 
 #include "pch.hpp"
 #include "template_parameter_remove_action.hpp"
+#include "log/log.hpp"
+
+
+// logging functions
+#define TPR_TRACE REFACTOR_LOG_TRACE(template-parameter-remove)
+#define TPR_DEBUG REFACTOR_LOG_DEBUG(template-parameter-remove)
+#define TPR_ERROR REFACTOR_LOG_ERROR(template-parameter-remove)
 
 
 /// Creates modification for removing template argument
@@ -17,6 +24,7 @@ remove_template_argument(const cm::src::template_argument_spec * arg,
                          const cm::src::template_argument_spec * prev_arg,
                          const cm::src::template_argument_spec * next_arg) {
     auto remove_range = arg->source_range().range();
+    TPR_DEBUG << "remove template argument: " << arg->class_name() << ": " << remove_range;
 
     // adjusting beginning of remove range if parameter is not the first parameter
     if (prev_arg != nullptr) {
@@ -32,6 +40,8 @@ remove_template_argument(const cm::src::template_argument_spec * arg,
         remove_range.set_end(next_arg->source_range().range().start());
     }
 
+    TPR_DEBUG << "adjusted template argument remove range: " << remove_range;
+
     return source_modification{remove_range, {}};
 }
 
@@ -40,14 +50,20 @@ multi_source_modifications
 template_parameter_remove_action::perform_mod(const cm::src::source_code_model & cm,
                                               const cm::src::source_file * src_file,
                                               const cm::src::source_position & pos) const {
+
+    cm::src::source_file_position src_pos{src_file->cm_src(), pos}; 
+    TPR_DEBUG << "position: " << src_pos;
+
     // looking for AST node located at specified position
-    cm::src::source_file_position src_pos{src_file->cm_src(), pos};
     auto node = cm.find_node_at_pos(src_pos);
     if (!node) {
         std::ostringstream msg;
         msg << "can't find AST node located at source position " << src_pos;
         throw std::runtime_error{msg.str()};
     }
+
+    TPR_DEBUG << "found AST node located at source position: " << node->class_name() << ' '
+              << '[' << node->source_range().range() << ']';
 
     // checking if node is an identifier
     auto ident = dynamic_cast<const cm::src::identifier*>(node);
@@ -68,6 +84,9 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
         throw std::runtime_error{msg.str()};
     }
 
+    TPR_DEBUG << "found code model entity associated with AST node: " << ent->desc();
+    TPR_TRACE << ent->dump_to_string();
+
     // checking that entity is a template parameter
     auto par = dynamic_cast<const cm::template_parameter*>(ent);
     if (par == nullptr) {
@@ -81,26 +100,25 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
     auto templ = par->templ();
     assert(templ != nullptr && "no template associated with template parameter");
 
-    // // getting index of template parameter
+    // getting index of template parameter
     auto params = templ->template_params();
     auto param_it = std::ranges::find(params, par);
     assert(param_it != std::ranges::end(params) && "can't find template parameter");
     auto params_size = std::ranges::distance(params);
     auto param_idx = std::distance(std::ranges::begin(params), param_it);
     assert(param_idx < params_size && "invalid template parameter index");
-    // std::cerr << "PARAMETER IDX: " << param_idx << std::endl;
+
+    TPR_DEBUG << "template parameter index: " << param_idx;
 
     multi_source_modifications mods;
 
     // iterating over all template substitutions and removing argument
     for (auto && use : templ->uses()) {
         if (auto subst = dynamic_cast<const cm::template_substitution*>(use)) {
-            // std::cerr << "TEMPLATE SUBSTITUTION: ";
-            // subst->print_desc(std::cerr);
-            // std::cerr << std::endl;
+            TPR_DEBUG << "found template substitution: " << subst->desc();
 
             for (auto subst_spec : subst->uses<cm::src::template_substitution_spec>()) {
-                // std::cerr << "TEMPLATE SUBSTITUTION SPEC USE: " << node->class_name() << std::endl;
+                TPR_DEBUG << "found template substitution spec: " << subst_spec->class_name();
 
                 // seatching for template argument spec and previous/next arguments
                 auto args = subst_spec->arguments();
@@ -126,16 +144,11 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
                 mods.add(src_file->cm_src()->path(), mod);
             }
         } else if (auto ent = dynamic_cast<const cm::entity*>(use)) {
-            std::cerr << "ENTITY USE: ";
-            ent->print_desc(std::cerr);
-            std::cerr << std::endl;
+            TPR_DEBUG << "found template use entity, skipping: " << ent->desc();
         } else if (auto node = dynamic_cast<const cm::src::ast_node*>(use)) {
-            // std::cerr << "NODE USE: "
-            //           << node->class_name()
-            //           << ", " << node->source_range()
-            //           << std::endl;
+            TPR_DEBUG << "found template use AST node, skipping: " << node->class_name();
         } else {
-            std::cerr << "UNKNOWN USE" << std::endl;
+            TPR_ERROR << "found unknown template use";
         }
     }
 
@@ -151,9 +164,9 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
             // template parameter declaration for template class itself
             // or for outline members declarations
 
-            // std::cerr << "TEMPLATE PARAMETER DECL USE: "
-            //           << node->class_name() << ": "
-            //           << node->source_range() << std::endl;
+            TPR_DEBUG << "found template parameter decl: "
+                      << par_decl->class_name() << ' '
+                      << par_decl->source_range();
 
             // getting declarations of previous and next parameters
             auto prev_par_decl = par_decl->prev();
@@ -175,6 +188,8 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
                 remove_range.set_end(next_par_decl->source_range().range().start());
             }
 
+            TPR_DEBUG << "adjusted range for removed template parameter: " << remove_range;
+
             // adding remove modification
             mods.add(src_file->cm_src()->path(), source_modification{remove_range, {}});
 
@@ -182,6 +197,9 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
         }
         
         if (auto spec = dynamic_cast<const cm::src::template_param_type_spec*>(node)) {
+            TPR_DEBUG << "found template parameter type spec:"
+                      << spec->class_name() << ' ' << spec->source_range();
+
             // checking for special case when parameter is used for referencing template record
             // itself inside template definition
             if (auto targ_spec =
@@ -190,6 +208,9 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
                 auto subst_spec = targ_spec->parent();
                 if (dynamic_cast<const cm::src::template_record_type_spec*>(subst_spec) ||
                     dynamic_cast<const cm::src::template_record_scope_spec*>(subst_spec)) {
+
+                    TPR_DEBUG << "tempalte parameter used for referencing template record,"
+                              << " removing";
 
                     // removing template argument from template substitution
                     auto mod = remove_template_argument(targ_spec,
@@ -203,9 +224,9 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
 
             // template parameter is used as another type specification, replacing it with ???
 
-            // std::cerr << "TEMPLATE PARAMETER TYPE SPEC USE: "
-            //         << node->class_name() << ": "
-            //         << node->source_range() << std::endl;
+            TPR_DEBUG << "template parameter is used as simple type specification, "
+                      << "replacing with ???: "
+                      << node->class_name() << ' ' << node->source_range();
 
             auto sz = spec->name()->string().size();
             std::string replace_str;
@@ -218,7 +239,7 @@ template_parameter_remove_action::perform_mod(const cm::src::source_code_model &
             continue;
         }
 
-        std::cerr << "UNKNOWN TEMPLATE PARAMETER USE:"
+        TPR_ERROR << "unknown template parameter use: "
                   << node->class_name() << ": "
                   << node->source_range() << std::endl;
     }

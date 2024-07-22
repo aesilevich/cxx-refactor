@@ -62,13 +62,10 @@ endif()
 
 
 # Boost.Test is required for building tests
-if("${BUILD_TESTING}")
-    find_package(Boost 1.64 REQUIRED COMPONENTS "unit_test_framework")
-endif()
-
-if(TARGET libclang)
-    #message(FATAL_ERROR "AAAA")
-endif()
+find_package(Boost 1.64 REQUIRED COMPONENTS
+             unit_test_framework
+             program_options
+             log)
 
 add_subdirectory(cm)
 add_subdirectory(src)

@@ -12,6 +12,7 @@
 #include "refactor_action.hpp"
 #include "refactor_action_registry.hpp"
 #include "template_parameter_remove_action.hpp"
+#include "log/log_init.hpp"
 #include <cm/src/cmsrc.hpp>
 #include <cm/src/cxx/clang/cmsrcclang.hpp>
 #include <iostream>
@@ -36,6 +37,8 @@ int main(int argc, char * argv[]) {
             ("input,i", po::value<fs::path>()->required(), "path to input source to parse");
             // ("output,o", po::value<fs::path>(), "optional path to output source")
             // ("in-place", "overwrite original input files with changes")
+        
+        global_opts.add(log_options());
 
         po::options_description cmdline_opts{"Command line arguments"};
         cmdline_opts.add(global_opts);
@@ -113,6 +116,9 @@ int main(int argc, char * argv[]) {
         // if (opts.count("output") > 0) {
         //     output = opts["output"].as<fs::path>();
         // }
+
+        // initializing log
+        log_init(var_map);
 
         // constructing code model and parsing input source
         cm::src::source_code_model code_mdl;
