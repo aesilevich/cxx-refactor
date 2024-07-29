@@ -13,9 +13,9 @@
 
 
 // logging functions
-#define TPR_TRACE REFACTOR_LOG_TRACE(template-parameter-remove)
-#define TPR_DEBUG REFACTOR_LOG_DEBUG(template-parameter-remove)
-#define TPR_ERROR REFACTOR_LOG_ERROR(template-parameter-remove)
+#define TPR_TRACE REFACTOR_LOG_SCAT_TRACE(refactor, template-parameter-remove)
+#define TPR_DEBUG REFACTOR_LOG_SCAT_DEBUG(refactor, template-parameter-remove)
+#define TPR_ERROR REFACTOR_LOG_SCAT_ERROR(refactor, template-parameter-remove)
 
 
 /// Creates modification for removing template argument
